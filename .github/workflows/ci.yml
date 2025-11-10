@@ -1,0 +1,54 @@
+name: CI
+on: { pull_request: { } }
+concurrency:
+  group: ${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+permissions:
+  checks: write
+  pull-requests: write
+  packages: write
+jobs:
+  setup-build:
+    runs-on: ubuntu-latest
+    outputs:
+      tox_envs: ${{ steps.list_envs.outputs.tox_envs }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-python-environment
+        with:
+          install_dependencies: false
+
+      - id: list_envs
+        run: |
+          tox_envs=$(tox --listenvs | jq -Rnc '[inputs | sub("\\.yml$"; "")]')
+          echo "tox_envs=${tox_envs}" >> $GITHUB_OUTPUT
+
+  lint:
+    runs-on: ubuntu-latest
+    needs: [setup-build]
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.setup-build.outputs.tox_envs) }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-python-environment
+
+      - name: Run tox target
+        run: poetry run tox --current-env -e ${{ matrix.target }}
+
+  build-container:
+    runs-on: ubuntu-latest
+    needs: [setup-build]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build container
+        uses: infrabits/ci-pack@main
+        with:
+          image: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          builder: tools-harbor.wmcloud.org/toolforge/heroku-builder:24_0.20.7
