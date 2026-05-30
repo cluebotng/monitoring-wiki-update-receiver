@@ -3,52 +3,35 @@ on: { pull_request: { } }
 concurrency:
   group: ${{ github.head_ref || github.ref }}
   cancel-in-progress: true
-permissions:
-  checks: write
-  pull-requests: write
-  packages: write
 jobs:
   setup-build:
-    runs-on: ubuntu-latest
-    outputs:
-      tox_envs: ${{ steps.list_envs.outputs.tox_envs }}
-    steps:
-      - uses: actions/checkout@v6
+    uses: infrabits/ci-setup-tox-env/.github/workflows/setup.yml@main
 
-      - uses: cluebotng/ci-setup-python-environment@main
-        with:
-          install_dependencies: false
-
-      - id: list_envs
-        run: |
-          tox_envs=$(tox --listenvs | jq -Rnc '[inputs | sub("\\.yml$"; "")]')
-          echo "tox_envs=${tox_envs}" >> $GITHUB_OUTPUT
-
-  lint:
-    runs-on: ubuntu-latest
+  execute-lint:
     needs: [setup-build]
-    strategy:
-      fail-fast: false
-      matrix:
-        target: ${{ fromJson(needs.setup-build.outputs.tox_envs) }}
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v6
+    uses: infrabits/ci-run-tox-env/.github/workflows/run.yml@main
+    with:
+      environments: ${{ needs.setup-build.outputs.lint }}
 
-      - uses: cluebotng/ci-setup-python-environment@main
-
-      - name: Run tox target
-        run: poetry run tox --current-env -e ${{ matrix.target }}
+  execute-test:
+    needs: [setup-build]
+    uses: infrabits/ci-run-tox-env/.github/workflows/run.yml@main
+    with:
+      environments: ${{ needs.setup-build.outputs.test }}
 
   build-container:
     runs-on: ubuntu-latest
-    needs: [setup-build]
-    continue-on-error: true
+    needs: [setup-build, execute-lint, execute-test]
+    permissions:
+      security-events: write
+      packages: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
 
       - name: Build container
         uses: infrabits/ci-pack@main
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           image: ghcr.io/${{ github.repository }}:${{ github.sha }}
           use_builder: latest
