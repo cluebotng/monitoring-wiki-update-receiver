@@ -1,7 +1,6 @@
 import logging
 import os
 import sys
-from typing import List, Dict, Optional
 
 import requests
 from fastapi import FastAPI
@@ -22,17 +21,17 @@ app = FastAPI()
 # Define models for better type safety
 class Alert(BaseModel):
     status: str
-    labels: Dict[str, str]
-    annotations: Dict[str, str]
+    labels: dict[str, str]
+    annotations: dict[str, str]
 
 
 class WebhookPayload(BaseModel):
     status: str
-    alerts: List[Alert]
+    alerts: list[Alert]
 
 
 class Wikipedia:
-    def __init__(self, host: str, page: str, username: Optional[str], password: Optional[str]):
+    def __init__(self, host: str, page: str, username: str | None, password: str | None):
         self.host = host
         self.page = page
         self._session = requests.session()
@@ -40,7 +39,7 @@ class Wikipedia:
         if username and password and not self._login(username, password):
             logger.warning(f"Failed to authenticate on {host}")
 
-    def _get_csrf_token(self) -> Optional[str]:
+    def _get_csrf_token(self) -> str | None:
         r = self._session.get(
             f"https://{self.host}/w/api.php",
             headers={
@@ -60,7 +59,7 @@ class Wikipedia:
         logger.warning(f"Failed to get CSRF token for {self.host}/{self.page}: [{r.status_code}] {r.text}")
         return None
 
-    def _get_login_token(self) -> Optional[str]:
+    def _get_login_token(self) -> str | None:
         r = self._session.get(
             f"https://{self.host}/w/api.php",
             headers={
@@ -126,7 +125,7 @@ class Wikipedia:
         expected_text = RUNNING_TEXT if running else NOT_RUNNING_TEXT
         return not r.text.strip().startswith(expected_text)
 
-    def update_page(self, running: bool, info: Optional[str]) -> bool:
+    def update_page(self, running: bool, info: str | None) -> bool:
         csrf_token = self._get_csrf_token()
         if not csrf_token:
             return False
