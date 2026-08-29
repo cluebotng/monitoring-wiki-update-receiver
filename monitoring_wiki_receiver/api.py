@@ -37,9 +37,8 @@ class Wikipedia:
         self.page = page
         self._session = requests.session()
 
-        if username and password:
-            if not self._login(username, password):
-                logger.warning(f"Failed to authenticate on {host}")
+        if username and password and not self._login(username, password):
+            logger.warning(f"Failed to authenticate on {host}")
 
     def _get_csrf_token(self) -> Optional[str]:
         r = self._session.get(
