@@ -3,15 +3,15 @@ name = "monitoring-wiki-receiver"
 version = "1.0"
 requires-python = ">=3.12" # T408108
 dependencies = [
-    "requests",
-    "fastapi[standard]",
+    "requests (>=2.34.2,<3.0.0)",
+    "fastapi[standard] (>=0.162.0,<0.163.0)",
 ]
 
 [tool.poetry.group.test.dependencies]
-tox = "*"
-tox-current-env = "*"
-black = "*"
-ruff = "*"
+tox = "^4.67.12"
+tox-current-env = "^0.0.17"
+black = "^26.10.1"
+ruff = "^0.17.4"
 
 [tool.black]
 line-length = 120
